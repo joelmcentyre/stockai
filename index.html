@@ -278,20 +278,62 @@ self.addEventListener('notificationclick',e=>{e.notification.close();e.waitUntil
 })();
 
 // ─── STATE ───────────────────────────────────────────────────
-const SK='sai3';
-let S=ld()||{cash:100,holdings:[],lastSync:null,syncedFrom:null,
-  history:[{d:'Mar 10',v:100},{d:'Mar 11',v:102.4},{d:'Mar 12',v:101.1},{d:'Mar 13',v:104.8},{d:'Mar 14',v:103.2}],
-  advice:null,notifOn:false};
+const SK='sai4';
+const JOEL_HOLDINGS=[
+  {s:'SNAP', sh:5,      avg:4.67},
+  {s:'CLNE', sh:10,     avg:2.17},
+  {s:'ERIC', sh:5,      avg:11.76},
+  {s:'OPTT', sh:10,     avg:0.39},
+  {s:'IMAQ', sh:5,      avg:10.19},
+  {s:'TXMD', sh:1,      avg:2.23},
+  {s:'TTWO', sh:0.0406, avg:206.72},
+  {s:'HUMA', sh:15,     avg:1.16},
+  {s:'SPRU', sh:0.625,  avg:3.78},
+  {s:'HYLN', sh:10,     avg:1.94},
+  {s:'MTNB', sh:1,      avg:0.60},
+  {s:'OGI',  sh:2.50,   avg:1.45},
+  {s:'LONA', sh:1,      avg:11.11},
+  {s:'CHAI', sh:2.50,   avg:1.51},
+  {s:'BYND', sh:5,      avg:0.75},
+  {s:'TLRY', sh:0.40,   avg:6.93},
+];
+// Worthless/delisted excluded: IDEXQ, NEPTF, MMATQ, MMTZZZ
+const JOEL_CASH=30.29;
+const JOEL_TOTAL=366.24;
+let S=ld()||{
+  cash:JOEL_CASH,
+  holdings:JOEL_HOLDINGS,
+  lastSync:'Mar 17, 5:05 PM',
+  syncedFrom:'Robinhood screenshot',
+  startValue:JOEL_TOTAL,
+  history:[
+    {d:'Mar 13',v:358.2},{d:'Mar 14',v:362.77},
+    {d:'Mar 17',v:JOEL_TOTAL}
+  ],
+  advice:null,notifOn:false
+};
 function sv(){try{localStorage.setItem(SK,JSON.stringify(S))}catch(e){}}
 function ld(){try{return JSON.parse(localStorage.getItem(SK))}catch(e){return null}}
 
 // ─── PRICES ──────────────────────────────────────────────────
 const TK=[
-  {s:'NVDA',n:'NVIDIA',sec:'Tech',b:875},{s:'AAPL',n:'Apple',sec:'Tech',b:189},
-  {s:'MSFT',n:'Microsoft',sec:'Tech',b:415},{s:'AMZN',n:'Amazon',sec:'Consumer',b:195},
-  {s:'TSLA',n:'Tesla',sec:'Auto',b:172},{s:'META',n:'Meta',sec:'Tech',b:520},
-  {s:'GOOGL',n:'Alphabet',sec:'Tech',b:172},{s:'SPY',n:'S&P ETF',sec:'ETF',b:528},
-  {s:'QQQ',n:'Nasdaq ETF',sec:'ETF',b:458},{s:'AMD',n:'AMD',sec:'Tech',b:158},
+  // Joel's actual holdings
+  {s:'SNAP', n:'Snap Inc',      sec:'Social',   b:4.67},
+  {s:'CLNE', n:'Clean Energy',  sec:'Energy',   b:2.17},
+  {s:'ERIC', n:'Ericsson',      sec:'Telecom',  b:11.76},
+  {s:'OPTT', n:'Ocean Power',   sec:'Energy',   b:0.39},
+  {s:'IMAQ', n:'Int\'l General',sec:'Spec',     b:10.19},
+  {s:'TTWO', n:'Take-Two',      sec:'Gaming',   b:206.72},
+  {s:'HUMA', n:'Humacyte',      sec:'Biotech',  b:1.16},
+  {s:'HYLN', n:'Hyliion',       sec:'EV',       b:1.94},
+  {s:'BYND', n:'Beyond Meat',   sec:'Food',     b:0.75},
+  {s:'TLRY', n:'Tilray',        sec:'Cannabis', b:6.93},
+  {s:'LONA', n:'Lona Systems',  sec:'Tech',     b:11.11},
+  // Watchlist
+  {s:'SPY',  n:'S&P 500 ETF',   sec:'ETF',      b:528},
+  {s:'QQQ',  n:'Nasdaq ETF',    sec:'ETF',      b:458},
+  {s:'NVDA', n:'NVIDIA',        sec:'Tech',     b:875},
+  {s:'AAPL', n:'Apple',         sec:'Tech',     b:189},
 ];
 let P={};
 function sr(s){return s.split('').reduce((a,c)=>a+c.charCodeAt(0),0)}
@@ -303,10 +345,11 @@ function ip(){
   });
 }
 function tv(){return S.cash+S.holdings.reduce((s,h)=>s+h.sh*(P[h.s]?.p||h.avg),0)}
+function startVal(){return S.startValue||JOEL_TOTAL}
 
 // ─── HEADER ──────────────────────────────────────────────────
 function uh(){
-  const v=tv(),d=v-100,pct=(d/100*100).toFixed(2),up=d>=0;
+  const v=tv(),d=v-startVal(),pct=(d/startVal()*100).toFixed(2),up=d>=0;
   document.getElementById('tv').textContent=v.toFixed(2);
   document.getElementById('tv').style.color=up?'var(--g)':'var(--r)';
   document.getElementById('tvchg').textContent=`${up?'▲':'▼'} $${Math.abs(d).toFixed(2)} (${up?'+':''}${pct}%) total`;
@@ -403,9 +446,9 @@ function rDash(c){
       </div>
     </div>
     <div class="sg">
-      ${[['Return',(v>=100?'+':'')+((v-100)/100*100).toFixed(2)+'%',v>=100?'var(--g)':'var(--r)'],
+      ${[['Return',(v>=startVal()?'+':'')+((v-startVal())/startVal()*100).toFixed(2)+'%',v>=startVal()?'var(--g)':'var(--r)'],
          ['Positions',S.holdings.length,''],['Invested','$'+(v-S.cash).toFixed(2),''],
-         ['To $200',Math.min((v/200*100).toFixed(0),100)+'%','var(--mu)']
+         ['To $1,000',Math.min((v/1000*100).toFixed(0),100)+'%','var(--mu)']
         ].map(([l,v2,col])=>`<div class="sb"><div class="sl">${l}</div><div class="sv" style="color:${col||'var(--tx)'}">${v2}</div></div>`).join('')}
     </div>
     <button class="btn btng" onclick="go('ai')">⚡ Run AI Daily Analysis</button>`;
@@ -453,21 +496,32 @@ async function runAI(){
   const wd=TK.map(t=>`${t.s}($${P[t.s]?.p?.toFixed(2)},${P[t.s]?.c>=0?'+':''}${P[t.s]?.c?.toFixed(2)}%)`).join(';');
   const sn=S.lastSync?`Synced from Robinhood on ${S.lastSync}.`:'Not yet synced with Robinhood.';
   const prompt=`You are a sharp trading advisor. Date: March 17 2026. ${sn}
-PORTFOLIO: Total $${tv().toFixed(2)}, Cash $${S.cash.toFixed(2)}, Holdings: ${hs}
-WATCHLIST: ${wd}
-CONSTRAINTS: $100 Robinhood account, fractional shares ok, no options/margin, maximize aggressive growth.
+REAL ROBINHOOD PORTFOLIO: Total $${tv().toFixed(2)}, Cash $${S.cash.toFixed(2)}, Goal: $1,000
+Holdings: ${hs}
+Watchlist: ${wd}
+CONTEXT: This is a real account starting at $366.24. Heavy in speculative small/micro caps. Several positions are near-zero. Only $30 cash available. Investor wants aggressive growth toward $1,000.
 Respond ONLY valid JSON no markdown:
-{"marketSummary":"2 sentence overview","portfolioGrade":"B — why","topActions":[{"action":"BUY","symbol":"SPY","amount":40,"reasoning":"1 sentence","confidence":80,"priority":"HIGH"}],"riskWarning":"1 risk today","strategyNote":"1 tip for $100 account"}
-Give 3-5 actions. BUY/SELL amount=dollars.`;
+{"marketSummary":"2 sentence market overview","portfolioGrade":"C+ — why","topActions":[{"action":"SELL","symbol":"OPTT","amount":3.90,"reasoning":"1 sentence","confidence":80,"priority":"HIGH"}],"riskWarning":"1 specific risk for this portfolio today","strategyNote":"1 concrete tip for growing this $366 account toward $1000"}
+Give 3-5 specific actions. For SELL use current market value as amount. For BUY use dollars to deploy from $${S.cash.toFixed(2)} cash. Be direct and honest about weak positions.`;
   try{
     const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
     const data=await res.json();
     const raw=data.content?.find(b=>b.type==='text')?.text||'';
     S.advice=JSON.parse(raw.replace(/```json|```/g,'').trim());
   }catch(e){
-    S.advice={marketSummary:'Markets mixed, tech showing resilience. Mid-week volume subdued ahead of Fed commentary.',portfolioGrade:'B — Good cash position ready to deploy on high-conviction signals.',
-      topActions:[{action:'BUY',symbol:'SPY',amount:40,reasoning:'Core diversified ETF; stable foundation for small account.',confidence:84,priority:'HIGH'},{action:'BUY',symbol:'NVDA',amount:30,reasoning:'AI demand cycle intact; momentum favors continuation.',confidence:73,priority:'HIGH'},{action:'BUY',symbol:'AAPL',amount:20,reasoning:'Defensive mega-cap with near-term catalyst potential.',confidence:66,priority:'MEDIUM'}],
-      riskWarning:'Fed minutes release could spike volatility — keep $10 cash buffer.',strategyNote:'2-3 high-conviction positions beat over-diversification at this account size.'};
+    S.advice={
+      marketSummary:'Markets up modestly today with tech leading. Small caps underperforming large caps — headwind for this portfolio.',
+      portfolioGrade:'C+ — Too many small/micro cap positions diluting returns. Consolidation needed.',
+      topActions:[
+        {action:'SELL',symbol:'OPTT',amount:3.90,reasoning:'Near-zero value, no near-term catalyst. Free up cash.',confidence:88,priority:'HIGH'},
+        {action:'SELL',symbol:'BYND',amount:3.75,reasoning:'Beyond Meat has fundamental business problems. Cut losses now.',confidence:85,priority:'HIGH'},
+        {action:'SELL',symbol:'MTNB',amount:0.60,reasoning:'Too small to matter. Clean up the portfolio.',confidence:82,priority:'HIGH'},
+        {action:'BUY',symbol:'ERIC',amount:15,reasoning:'Your strongest position — add to your winner with freed-up cash.',confidence:71,priority:'MEDIUM'},
+        {action:'BUY',symbol:'SPY',amount:15,reasoning:'Deploy remaining cash into stable ETF as portfolio anchor.',confidence:78,priority:'MEDIUM'},
+      ],
+      riskWarning:'Small/micro cap positions like HYLN and CLNE have thin liquidity — any market dip hits these hardest.',
+      strategyNote:'Sell your 5 smallest positions this week, consolidate into 3-4 quality names. Fewer positions = more focus = better returns.'
+    };
   }
   aiLoad=false;sv();render();
 }
