@@ -278,24 +278,24 @@ self.addEventListener('notificationclick',e=>{e.notification.close();e.waitUntil
 })();
 
 // ─── STATE ───────────────────────────────────────────────────
-const SK='sai4';
+const SK='sai6';
 const JOEL_HOLDINGS=[
-  {s:'SNAP', sh:5,      avg:4.67},
+  {s:'SNAP', sh:5, avg:4.66},
   {s:'CLNE', sh:10,     avg:2.17},
   {s:'ERIC', sh:5,      avg:11.76},
   {s:'OPTT', sh:10,     avg:0.39},
   {s:'IMAQ', sh:5,      avg:10.19},
   {s:'TXMD', sh:1,      avg:2.23},
   {s:'TTWO', sh:0.0406, avg:206.72},
-  {s:'HUMA', sh:15,     avg:1.16},
+  {s:'HUMA', sh:15, avg:1.17},
   {s:'SPRU', sh:0.625,  avg:3.78},
   {s:'HYLN', sh:10,     avg:1.94},
   {s:'MTNB', sh:1,      avg:0.60},
   {s:'OGI',  sh:2.50,   avg:1.45},
-  {s:'LONA', sh:1,      avg:11.11},
+  {s:'LONA', sh:1, avg:11.61},
   {s:'CHAI', sh:2.50,   avg:1.51},
   {s:'BYND', sh:5,      avg:0.75},
-  {s:'TLRY', sh:0.40,   avg:6.93},
+  {s:'TLRY', sh:0.40, avg:6.94},
 ];
 // Worthless/delisted excluded: IDEXQ, NEPTF, MMATQ, MMTZZZ
 const JOEL_CASH=30.29;
@@ -303,7 +303,7 @@ const JOEL_TOTAL=366.24;
 let S=ld()||{
   cash:JOEL_CASH,
   holdings:JOEL_HOLDINGS,
-  lastSync:'Mar 17, 5:05 PM',
+  lastSync:'Mar 17, 5:48 PM',
   syncedFrom:'Robinhood screenshot',
   startValue:JOEL_TOTAL,
   history:[
@@ -318,17 +318,17 @@ function ld(){try{return JSON.parse(localStorage.getItem(SK))}catch(e){return nu
 // ─── PRICES ──────────────────────────────────────────────────
 const TK=[
   // Joel's actual holdings
-  {s:'SNAP', n:'Snap Inc',      sec:'Social',   b:4.67},
+  {s:'SNAP', n:'Snap Inc', sec:'Social', b:4.66},
   {s:'CLNE', n:'Clean Energy',  sec:'Energy',   b:2.17},
   {s:'ERIC', n:'Ericsson',      sec:'Telecom',  b:11.76},
   {s:'OPTT', n:'Ocean Power',   sec:'Energy',   b:0.39},
   {s:'IMAQ', n:'Int\'l General',sec:'Spec',     b:10.19},
   {s:'TTWO', n:'Take-Two',      sec:'Gaming',   b:206.72},
-  {s:'HUMA', n:'Humacyte',      sec:'Biotech',  b:1.16},
+  {s:'HUMA', n:'Humacyte', sec:'Biotech', b:1.17},
   {s:'HYLN', n:'Hyliion',       sec:'EV',       b:1.94},
   {s:'BYND', n:'Beyond Meat',   sec:'Food',     b:0.75},
-  {s:'TLRY', n:'Tilray',        sec:'Cannabis', b:6.93},
-  {s:'LONA', n:'Lona Systems',  sec:'Tech',     b:11.11},
+  {s:'TLRY', n:'Tilray', sec:'Cannabis', b:6.94},
+  {s:'LONA', n:'Lona Systems', sec:'Tech', b:11.61},
   // Watchlist
   {s:'SPY',  n:'S&P 500 ETF',   sec:'ETF',      b:528},
   {s:'QQQ',  n:'Nasdaq ETF',    sec:'ETF',      b:458},
@@ -576,64 +576,122 @@ function rAI(c){
     <button class="btno" style="width:100%;margin-bottom:8px" onclick="runAI()">↻ Refresh Analysis</button>`;
 }
 
-// ─── ROBINHOOD SYNC ──────────────────────────────────────────
-let sImg=null,sParsing=false;
+// ─── LIVE PRICES via Yahoo Finance ─────────────────────────
+async function fetchLivePrices(){
+  const syms=[...new Set([...S.holdings.map(h=>h.s),...['SPY','QQQ','NVDA','AAPL']])];
+  if(!syms.length) return;
+  const url=`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${syms.join(',')}&fields=regularMarketPrice,regularMarketChangePercent`;
+  try{
+    const res=await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+    const data=await res.json();
+    const parsed=JSON.parse(data.contents);
+    const quotes=parsed?.quoteResponse?.result||[];
+    quotes.forEach(q=>{
+      if(q.regularMarketPrice){
+        P[q.symbol]={p:+q.regularMarketPrice.toFixed(2),c:+(q.regularMarketChangePercent||0).toFixed(2)};
+      }
+    });
+    S.priceUpdated=new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    sv();uh();if(tab==='dash'||tab==='mkt')render();
+    toast(`Live prices updated ${S.priceUpdated}`,'ok');
+  }catch(e){toast('Price fetch failed — using simulated prices','inf')}
+}
+
+// ─── SYNC — PASTE TEXT IMPORT ────────────────────────────────
+let pasteText='';
 function rSync(c){
-  const prev=sImg?`<div style="margin-bottom:12px"><img src="${sImg}" class="sprev"/><div style="font-size:11px;color:var(--mu);text-align:center">Screenshot loaded ✓</div></div>`:'';
-  const pb=sImg&&!sParsing?`<button class="btn btng" style="margin-bottom:10px" onclick="parseS()">🔍 Parse & Sync Portfolio</button>`:sParsing?`<button class="btn" style="background:var(--s3);color:var(--mu);cursor:default" disabled>Analyzing screenshot…</button>`:'';
-  const ls=S.lastSync?`<div class="card cg" style="margin-bottom:12px"><div class="clabel">Last Sync</div><div style="font-size:13px;color:var(--g);margin-bottom:5px">✓ ${S.lastSync}</div><div style="font-size:12px;color:var(--mu)">${S.syncedFrom||'Robinhood screenshot'}</div></div>`:'';
+  const ls=S.lastSync?`<div class="card cg" style="margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div><div class="clabel">Last Sync</div><div style="font-size:13px;color:var(--g)">\u2713 ${S.lastSync}</div>
+      <div style="font-size:11px;color:var(--mu);margin-top:2px">${S.syncedFrom||'Paste import'}</div></div>
+      <button class="btno bgo" style="padding:9px 14px;font-size:12px" onclick="fetchLivePrices()">\u21bb Prices</button>
+    </div></div>`:'';
+  const rows=S.holdings.map(h=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--b1);font-size:13px">
+      <div><span style="font-family:var(--mono);font-size:14px">${h.s}</span><span style="color:var(--mu);margin-left:8px">${h.sh} sh</span></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-family:var(--mono)">$${h.avg}</span>
+        <button onclick="removeHolding('${h.s}')" style="background:none;border:none;color:var(--r);font-size:18px;cursor:pointer;padding:4px 8px">×</button>
+      </div>
+    </div>`).join('');
   c.innerHTML=`${ls}
     <div class="card cb">
-      <div class="clabel">📸 Best Screen to Screenshot</div>
-      <div style="font-size:13px;color:#8899cc;line-height:1.8;margin-bottom:14px">
-        In Robinhood: tap <strong style="color:var(--tx)">Investing</strong> tab → scroll past the chart to your <strong style="color:var(--tx)">Positions list</strong>.<br>
-        This screen shows each stock's symbol, shares, avg cost, and current value — perfect for AI parsing.<br><br>
-        <strong style="color:var(--tx)">Screenshot:</strong> Press Power + Volume Down simultaneously.
+      <div class="clabel">How to Sync in 30 Seconds</div>
+      <div style="font-size:13px;color:#8899cc;line-height:1.9;margin-bottom:12px">
+        <strong style="color:var(--tx)">1.</strong> Screenshot your Robinhood positions<br>
+        <strong style="color:var(--tx)">2.</strong> Open Google Lens or any AI — ask it to extract as:<br>
+        <em style="color:var(--y);font-family:var(--mono);font-size:12px">"SYMBOL, SHARES, PRICE"</em><br>
+        <strong style="color:var(--tx)">3.</strong> Copy result → paste below → tap Sync
       </div>
-      <a class="rh" href="https://robinhood.com" target="_blank">Open Robinhood →</a>
+      <a class="rh" href="https://robinhood.com" target="_blank">Open Robinhood \u2192</a>
     </div>
-    ${prev}
-    <div class="uzone" id="uz" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="hdrop(event)">
-      <input type="file" accept="image/*" onchange="hfile(event)"/>
-      <div style="font-size:34px;margin-bottom:10px">${sImg?'🔄':'📤'}</div>
-      <div style="font-size:15px;font-weight:700;margin-bottom:5px">${sImg?'Upload New Screenshot':'Upload Your Screenshot'}</div>
-      <div style="font-size:12px;color:var(--mu)">Tap to open gallery · or drag & drop</div>
+    <div class="card">
+      <div class="clabel">Paste Positions</div>
+      <div style="font-size:11px;color:var(--mu);margin-bottom:10px">One stock per line. Any format works:</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--g);background:var(--s2);border-radius:8px;padding:10px;margin-bottom:12px;line-height:1.8">SNAP, 5, 4.66<br>CLNE, 10, 2.17<br>ERIC, 5, 11.76</div>
+      <textarea id="ptxt" style="width:100%;height:150px;background:var(--s2);border:1px solid var(--b1);border-radius:10px;color:var(--tx);font-family:var(--mono);font-size:13px;padding:12px;resize:none;outline:none;line-height:1.7" placeholder="Paste here..." oninput="pasteText=this.value"></textarea>
+      <div style="display:flex;gap:10px;margin-top:10px">
+        <input id="pcash" type="number" inputmode="decimal" placeholder="Cash ($)" value="${S.cash}"
+          style="flex:1;padding:13px;background:var(--s2);border:1px solid var(--b1);border-radius:10px;color:var(--tx);font-family:var(--mono);font-size:14px;outline:none"/>
+        <button class="btn btng" style="flex:1;font-size:14px" onclick="doTextSync()">\u21c4 Sync</button>
+      </div>
     </div>
-    <div style="height:12px"></div>
-    ${pb}
-    <div class="card" style="margin-top:4px">
-      <div class="clabel">What Gets Extracted</div>
-      ${[['Each stock symbol','From your positions list'],['Share count','Exact fractional shares'],['Avg cost basis','Your purchase average'],['Current price','Live market value'],['Cash balance','Available buying power']].map(([k,v2])=>`<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--b1);font-size:12px"><span style="color:var(--mu)">${k}</span><span style="color:#8899cc">${v2}</span></div>`).join('')}
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div class="clabel" style="margin-bottom:0">Current Positions (${S.holdings.length})</div>
+        <button class="btno" style="padding:7px 12px;font-size:11px" onclick="addHoldingPrompt()">+ Add One</button>
+      </div>
+      ${S.holdings.length?rows:`<div style="text-align:center;padding:16px 0;color:var(--mu);font-size:13px">No positions — paste above to import</div>`}
+      <div style="display:flex;justify-content:space-between;padding-top:12px;border-top:1px solid var(--b1);margin-top:4px">
+        <span style="font-size:12px;color:var(--mu)">Cash</span>
+        <span style="font-family:var(--mono)">$${S.cash.toFixed(2)}</span>
+      </div>
     </div>`;
 }
-function hfile(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{sImg=ev.target.result;render()};r.readAsDataURL(f)}
-function hdrop(e){e.preventDefault();e.currentTarget.classList.remove('drag');const f=e.dataTransfer.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{sImg=ev.target.result;render()};r.readAsDataURL(f)}
-async function parseS(){
-  if(!sImg){toast('No screenshot loaded','err');return}
-  sParsing=true;render();
-  const b64=sImg.replace(/^data:image\/\w+;base64,/,'');
-  const mt=sImg.match(/^data:(image\/\w+);base64,/)?.[1]||'image/jpeg';
-  const prompt=`This is a Robinhood portfolio positions screenshot from Android.
-Extract all data and return ONLY valid JSON, no markdown:
-{"totalValue":1234.56,"cash":45.67,"holdings":[{"symbol":"AAPL","shares":1.2345,"avgCost":185.00,"currentPrice":189.00,"marketValue":233.11}]}
-Extract every visible position. Use null for unclear values. Be precise with share counts.`;
-  try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mt,data:b64}},{type:'text',text:prompt}]}]})});
-    const data=await res.json();
-    const raw=data.content?.find(b=>b.type==='text')?.text||'';
-    const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
-    if(parsed.holdings?.length){
-      S.holdings=parsed.holdings.filter(h=>h.symbol&&h.shares).map(h=>({s:h.symbol.toUpperCase(),sh:parseFloat(h.shares)||0,avg:parseFloat(h.avgCost)||parseFloat(h.currentPrice)||0}));
+function doTextSync(){
+  const txt=document.getElementById('ptxt')?.value||'';
+  const cashVal=parseFloat(document.getElementById('pcash')?.value);
+  if(!txt.trim()){toast('Paste your positions first','err');return}
+  const lines=txt.trim().split('\n').filter(l=>l.trim());
+  const parsed=[];
+  for(const line of lines){
+    const tokens=line.replace(/[$,]/g,'').split(/[\s,\t|]+/).filter(Boolean);
+    let sym='',nums=[];
+    for(const t of tokens){
+      if(/^[A-Z]{1,6}$/.test(t.toUpperCase())&&isNaN(t)) sym=t.toUpperCase();
+      else if(!isNaN(parseFloat(t))) nums.push(parseFloat(t));
     }
-    if(parsed.cash!=null) S.cash=parseFloat(parsed.cash)||S.cash;
-    if(parsed.totalValue) S.history.push({d:'Sync',v:parseFloat(parsed.totalValue)});
-    S.lastSync=new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-    S.syncedFrom='Robinhood screenshot';
-    sImg=null;sParsing=false;sv();
-    toast(`Synced ${S.holdings.length} positions from Robinhood ✓`,'ok');
-    go('dash');
-  }catch(e){sParsing=false;render();toast('Could not read screenshot — try a clearer image','err')}
+    if(sym&&nums.length>=2) parsed.push({s:sym,sh:nums[0],avg:nums[1]});
+    else if(sym&&nums.length===1) parsed.push({s:sym,sh:nums[0],avg:0});
+  }
+  if(!parsed.length){toast('Could not read positions — check format','err');return}
+  const valid=parsed.filter(h=>h.avg>0);
+  const skipped=parsed.length-valid.length;
+  S.holdings=valid;
+  if(!isNaN(cashVal)&&cashVal>=0) S.cash=+cashVal.toFixed(2);
+  S.lastSync=new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  S.syncedFrom='Paste import';
+  S.history.push({d:'Sync',v:tv()});
+  sv();
+  toast(`Synced ${valid.length} positions${skipped?' ('+skipped+' $0 skipped)':''}  \u2713`,'ok');
+  setTimeout(fetchLivePrices,600);
+  go('dash');
 }
+function removeHolding(sym){
+  S.holdings=S.holdings.filter(h=>h.s!==sym);sv();render();toast('Removed '+sym,'ok');
+}
+function addHoldingPrompt(){
+  const sym=prompt('Stock symbol (e.g. AAPL):')?.toUpperCase().trim();
+  if(!sym)return;
+  const sh=parseFloat(prompt('Number of shares:'));
+  if(isNaN(sh)||sh<=0)return;
+  const price=parseFloat(prompt('Avg cost per share ($):'));
+  if(isNaN(price))return;
+  const ex=S.holdings.find(h=>h.s===sym);
+  if(ex){ex.sh=sh;ex.avg=price;}else S.holdings.push({s:sym,sh,avg:price});
+  sv();render();toast('Added '+sym,'ok');
+}
+
 
 // ─── ALERTS ──────────────────────────────────────────────────
 const ATIMES=[
@@ -777,6 +835,7 @@ function doInstall(){if(window._dip){window._dip.prompt();window._dip.userChoice
 // ─── INIT ─────────────────────────────────────────────────────
 ip();utk();render();
 setInterval(()=>{ip();utk();uh();if(tab==='mkt'||tab==='dash')render()},30000);
+setTimeout(fetchLivePrices,2000); // auto-fetch live prices on load
 if(Notification.permission==='granted'&&S.notifOn)setTimeout(schedAll,1500);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Notification.permission==='granted'&&S.notifOn)schedAll()});
 </script>
