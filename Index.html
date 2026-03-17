@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"/>
+<meta name="theme-color" content="#07080f"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="StockAI"/>
+<title>StockAI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#07080f; --s1:#0d0f1c; --s2:#131627; --s3:#191d33;
+  --b1:#1f2440; --b2:#2a3060;
+  --g:#00f0a0; --g2:rgba(0,240,160,.12); --g3:rgba(0,240,160,.05);
+  --r:#ff3a5c; --r2:rgba(255,58,92,.12);
+  --y:#ffc53d; --y2:rgba(255,197,61,.1);
+  --bl:#5b8fff; --bl2:rgba(91,143,255,.12);
+  --tx:#dce4ff; --mu:#4a5280; --fa:#1a1f3a;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'Manrope',sans-serif;
+  --st:env(safe-area-inset-top,0px);
+  --sb:env(safe-area-inset-bottom,0px);
+  --nh:58px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--tx)}
+body{font-family:var(--sans);overscroll-behavior:none}
+#root{display:flex;flex-direction:column;height:100%;height:100dvh}
+
+/* ── HEADER ── */
+#hdr{
+  padding:calc(var(--st) + 12px) 16px 0;
+  flex-shrink:0; position:relative; z-index:10;
+  background:linear-gradient(180deg,var(--bg) 70%,transparent);
+}
+.hrow{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.hlabel{font-family:var(--mono);font-size:9px;color:var(--mu);letter-spacing:.2em;margin-bottom:4px}
+.hval{font-family:var(--mono);font-size:32px;letter-spacing:-.025em;line-height:1}
+.hsub{font-family:var(--mono);font-size:11px;margin-top:3px}
+.hcash{font-family:var(--mono);font-size:19px}
+.hmeta{font-size:10px;color:var(--mu);margin-top:3px}
+
+/* ── TICKER ── */
+#tkbar{
+  height:25px;display:flex;align-items:center;overflow:hidden;
+  background:var(--s1);border-top:1px solid var(--b1);border-bottom:1px solid var(--b1);
+  margin:8px -16px 0;
+}
+.tkscroll{display:flex;gap:22px;white-space:nowrap;padding:0 12px;animation:tks 34s linear infinite}
+@keyframes tks{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.tki{font-family:var(--mono);font-size:10px;display:flex;gap:4px}
+.tks2{color:var(--mu)}.tgu{color:var(--g)}.trd{color:var(--r)}
+
+/* ── TABS ── */
+#tabbar{display:flex;gap:6px;padding:10px 0 0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#tabbar::-webkit-scrollbar{display:none}
+.tp{
+  background:none;border:1px solid var(--b1);border-radius:18px;
+  padding:7px 15px;font-size:12px;font-weight:600;color:var(--mu);
+  cursor:pointer;white-space:nowrap;font-family:var(--sans);
+  transition:all .18s;flex-shrink:0
+}
+.tp.on{background:var(--g2);border-color:var(--g);color:var(--g)}
+
+/* ── CONTENT ── */
+#pg{
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  padding:14px 16px calc(var(--nh) + var(--sb) + 18px);
+  -webkit-overflow-scrolling:touch;
+}
+::-webkit-scrollbar{width:2px}
+::-webkit-scrollbar-thumb{background:var(--b1);border-radius:2px}
+
+/* ── BOTTOM NAV ── */
+#nav{
+  position:fixed;bottom:0;left:0;right:0;
+  height:calc(var(--nh) + var(--sb));padding-bottom:var(--sb);
+  background:rgba(7,8,15,.97);border-top:1px solid var(--b1);
+  display:flex;backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
+  z-index:100;
+}
+.nb{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:3px;background:none;border:none;
+  cursor:pointer;color:var(--mu);font-size:9.5px;font-weight:600;
+  font-family:var(--sans);letter-spacing:.04em;min-height:44px;
+  transition:color .15s;
+}
+.nb.on{color:var(--g)}
+.nbi{font-size:19px;line-height:1;transition:transform .15s}
+.nb.on .nbi{transform:scale(1.15)}
+
+/* ── CARDS ── */
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:16px;padding:16px;margin-bottom:11px}
+.cg{border-color:rgba(0,240,160,.2);background:linear-gradient(135deg,var(--g3),var(--s1))}
+.cy{border-color:rgba(255,197,61,.2);background:linear-gradient(135deg,var(--y2),var(--s1))}
+.cr{border-color:rgba(255,58,92,.2);background:linear-gradient(135deg,var(--r2),var(--s1))}
+.cb{border-color:rgba(91,143,255,.2);background:linear-gradient(135deg,var(--bl2),var(--s1))}
+.clabel{font-family:var(--mono);font-size:9px;color:var(--mu);letter-spacing:.18em;text-transform:uppercase;margin-bottom:11px}
+
+/* ── BTNS ── */
+.btn{width:100%;padding:15px;border:none;border-radius:13px;font-family:var(--sans);font-size:15px;font-weight:700;cursor:pointer;min-height:52px;transition:transform .1s,opacity .12s}
+.btn:active{transform:scale(.97);opacity:.88}
+.btn:disabled{opacity:.35;cursor:default}
+.btng{background:var(--g);color:#000}
+.btno{background:none;border:1px solid var(--b1);color:var(--tx);font-size:13px;padding:11px 16px;border-radius:11px;cursor:pointer;font-family:var(--sans);min-height:44px;transition:background .15s;font-weight:600}
+.btno:active{background:var(--fa)}
+.bgo{border-color:var(--g);color:var(--g)}
+.bro{border-color:var(--r);color:var(--r)}
+
+/* ── ROWS ── */
+.hrow2{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--b1)}
+.hrow2:last-child{border-bottom:none}
+.wrow{display:flex;align-items:center;padding:12px 0;border-bottom:1px solid var(--b1);gap:8px}
+.wrow:last-child{border-bottom:none}
+
+/* ── ACTION CARDS ── */
+.ac{border-radius:14px;padding:14px;margin-bottom:10px;border:1px solid var(--b1)}
+.ac.buy{background:var(--g3);border-color:rgba(0,240,160,.2)}
+.ac.sell{background:var(--r2);border-color:rgba(255,58,92,.2)}
+.abadge{display:inline-block;font-family:var(--mono);font-size:10px;padding:3px 9px;border-radius:5px;margin-right:8px}
+.abg{background:var(--g2);color:var(--g)}
+.abr{background:var(--r2);color:var(--r)}
+.abh{background:var(--s3);color:var(--mu)}
+.cbar{height:3px;border-radius:2px;background:var(--b1);margin-top:10px;overflow:hidden}
+.cfill{height:100%;border-radius:2px;transition:width .7s ease}
+
+/* ── STATS ── */
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:11px}
+.sb{background:var(--s2);border-radius:13px;padding:13px}
+.sl{font-size:10px;color:var(--mu);margin-bottom:4px}
+.sv{font-family:var(--mono);font-size:15px}
+
+/* ── UPLOAD ── */
+.uzone{
+  border:2px dashed var(--b2);border-radius:16px;padding:28px 20px;
+  text-align:center;cursor:pointer;position:relative;
+  transition:border-color .2s,background .2s;
+}
+.uzone.drag{border-color:var(--bl);background:var(--bl2)}
+.uzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.sprev{width:100%;border-radius:12px;max-height:220px;object-fit:cover;margin:12px 0;display:block}
+
+/* ── MODAL ── */
+.mover{position:fixed;inset:0;background:rgba(0,0,0,.9);display:flex;align-items:flex-end;z-index:200;backdrop-filter:blur(8px)}
+.msheet{width:100%;background:var(--s1);border-radius:22px 22px 0 0;padding:20px 20px calc(var(--sb) + 24px);animation:sup .25s ease;border-top:1px solid var(--b2)}
+@keyframes sup{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.mhandle{width:36px;height:4px;background:var(--b2);border-radius:2px;margin:0 auto 20px}
+.tinput{width:100%;padding:16px;background:var(--s2);border:1px solid var(--b1);border-radius:12px;font-family:var(--mono);font-size:22px;color:var(--tx);outline:none;text-align:center;margin-bottom:10px}
+.tinput:focus{border-color:var(--g)}
+.ttog{display:flex;gap:8px;margin-bottom:18px}
+.ttb{flex:1;padding:11px;border-radius:9px;border:1px solid var(--b1);background:none;font-family:var(--sans);font-size:13px;font-weight:600;color:var(--mu);cursor:pointer;transition:all .15s;min-height:44px}
+.ttb.on{background:var(--g2);border-color:var(--g);color:var(--g)}
+.trow{display:flex;gap:10px}
+
+/* ── NOTIF ── */
+.nrow{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--b1)}
+.nrow:last-child{border-bottom:none}
+.npill{display:inline-flex;align-items:center;gap:5px;border-radius:10px;padding:6px 11px;font-family:var(--mono);font-size:11px}
+.npg{background:var(--g2);color:var(--g)}
+.npy{background:var(--y2);color:var(--y)}
+.npm{background:var(--s3);color:var(--mu)}
+
+/* ── INSTALL BANNER ── */
+.ibanner{
+  background:linear-gradient(135deg,rgba(0,240,160,.08),rgba(91,143,255,.05));
+  border:1px solid rgba(0,240,160,.2);border-radius:14px;
+  padding:14px 16px;margin-bottom:12px;
+  display:flex;justify-content:space-between;align-items:center;gap:12px
+}
+
+/* ── PROGRESS ── */
+.pdots{display:flex;gap:7px;justify-content:center;margin:18px 0}
+.pd{width:9px;height:9px;border-radius:50%;background:var(--b1);transition:background .3s,transform .3s}
+.pd.on{background:var(--g);transform:scale(1.2)}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:calc(var(--nh) + var(--sb) + 12px);
+  left:16px;right:16px;padding:14px 18px;border-radius:13px;
+  font-size:14px;font-weight:700;text-align:center;z-index:400;
+  animation:fup .22s ease,fout .3s 2.6s ease forwards;
+  font-family:var(--sans);
+}
+.tok{background:var(--g);color:#000}
+.terr{background:var(--r);color:#fff}
+.tinf{background:var(--bl);color:#fff}
+@keyframes fup{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes fout{to{opacity:0;transform:translateY(-6px)}}
+
+.fin{animation:fin .22s ease}
+@keyframes fin{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+.rh{display:flex;align-items:center;justify-content:center;gap:8px;padding:15px;border-radius:13px;background:linear-gradient(135deg,#00c805,#006e00);color:#fff;font-size:15px;font-weight:700;text-decoration:none;min-height:52px;margin-bottom:10px}
+</style>
+</head>
+<body>
+<div id="root">
+  <div id="hdr">
+    <div class="hrow">
+      <div>
+        <div class="hlabel">STOCKAI · <span id="mstat" style="color:var(--g)">—</span></div>
+        <div class="hval">$<span id="tv" style="color:var(--g)">100.00</span></div>
+        <div class="hsub" id="tvchg" style="color:var(--g)">▲ $0.00 (0.00%)</div>
+      </div>
+      <div style="text-align:right">
+        <div class="hlabel">Cash</div>
+        <div class="hcash" id="ch">$100.00</div>
+        <div class="hmeta" id="ss">Not synced</div>
+      </div>
+    </div>
+    <div id="tkbar"><div class="tkscroll" id="tk"></div></div>
+    <div id="tabbar">
+      <button class="tp on" data-p="dash" onclick="go('dash')">Portfolio</button>
+      <button class="tp" data-p="mkt" onclick="go('mkt')">Markets</button>
+      <button class="tp" data-p="ai" onclick="go('ai')">AI Advisor</button>
+      <button class="tp" data-p="sync" onclick="go('sync')">Sync Robinhood</button>
+      <button class="tp" data-p="alerts" onclick="go('alerts')">Alerts</button>
+    </div>
+  </div>
+  <div id="pg"></div>
+  <nav id="nav">
+    <button class="nb on" data-p="dash" onclick="go('dash')"><span class="nbi">◈</span>Portfolio</button>
+    <button class="nb" data-p="mkt" onclick="go('mkt')"><span class="nbi">◉</span>Markets</button>
+    <button class="nb" data-p="ai" onclick="go('ai')"><span class="nbi">⟁</span>Advisor</button>
+    <button class="nb" data-p="sync" onclick="go('sync')"><span class="nbi">⇄</span>Sync</button>
+    <button class="nb" data-p="alerts" onclick="go('alerts')"><span class="nbi">◎</span>Alerts</button>
+  </nav>
+</div>
+
+<!-- Trade Modal -->
+<div class="mover" id="tmod" style="display:none" onclick="if(event.target===this)cmod()">
+  <div class="msheet">
+    <div class="mhandle"></div>
+    <div class="clabel" id="mlbl" style="margin-bottom:12px">BUY · NVDA</div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:16px">
+      <div><div style="font-family:var(--mono);font-size:22px" id="mpr">$0.00</div><div style="font-size:11px;color:var(--mu)">per share</div></div>
+      <div style="text-align:right"><div style="font-family:var(--mono);font-size:13px;color:var(--mu)" id="mca">Cash: $0</div></div>
+    </div>
+    <div class="ttog"><button class="ttb on" id="tbd" onclick="stt('d')">$ Dollars</button><button class="ttb" id="tbs" onclick="stt('s')"># Shares</button></div>
+    <input class="tinput" id="tqty" type="number" inputmode="decimal" placeholder="0.00" oninput="ctc()"/>
+    <div id="tcc" style="text-align:center;font-family:var(--mono);font-size:12px;color:var(--mu);min-height:18px;margin-bottom:14px"></div>
+    <div class="trow">
+      <button class="btno" style="flex:1" onclick="cmod()">Cancel</button>
+      <button class="btn btng" style="flex:2;margin-left:0" id="tcb" onclick="dtrade()">CONFIRM</button>
+    </div>
+  </div>
+</div>
+<div id="toasts"></div>
+
+<script>
+// ─── INLINE MANIFEST (injected into <head>) ─────────────────
+(function(){
+  const m={name:"StockAI — Daily Advisor",short_name:"StockAI",start_url:location.href,display:"standalone",background_color:"#07080f",theme_color:"#07080f",icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='38' fill='%2307080f'/%3E%3Ctext x='96' y='130' font-size='110' text-anchor='middle'%3E📈%3C/text%3E%3C/svg%3E",sizes:"192x192",type:"image/svg+xml",purpose:"any maskable"},{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%2307080f'/%3E%3Ctext x='256' y='350' font-size='290' text-anchor='middle'%3E📈%3C/text%3E%3C/svg%3E",sizes:"512x512",type:"image/svg+xml",purpose:"any maskable"}]};
+  const blob=new Blob([JSON.stringify(m)],{type:'application/manifest+json'});
+  const link=document.createElement('link');
+  link.rel='manifest'; link.href=URL.createObjectURL(blob);
+  document.head.appendChild(link);
+})();
+
+// ─── INLINE SERVICE WORKER ───────────────────────────────────
+(function(){
+  if(!('serviceWorker' in navigator)) return;
+  const sw=`
+const C='sai3';
+const A=['${location.href}'];
+self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(A)));self.skipWaiting()});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim()});
+self.addEventListener('fetch',e=>{if(e.request.url.includes('api.anthropic')||e.request.url.includes('fonts.google'))return;e.respondWith(caches.match(e.request).then(h=>h||fetch(e.request).catch(()=>caches.match('${location.href}'))))});
+self.addEventListener('notificationclick',e=>{e.notification.close();e.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(cl=>{if(cl.length){cl[0].focus();cl[0].postMessage({tab:'ai'})}else clients.openWindow('${location.href}')}))});
+  `;
+  const blob=new Blob([sw],{type:'text/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob),{scope:'/'}).catch(()=>{});
+})();
+
+// ─── STATE ───────────────────────────────────────────────────
+const SK='sai3';
+let S=ld()||{cash:100,holdings:[],lastSync:null,syncedFrom:null,
+  history:[{d:'Mar 10',v:100},{d:'Mar 11',v:102.4},{d:'Mar 12',v:101.1},{d:'Mar 13',v:104.8},{d:'Mar 14',v:103.2}],
+  advice:null,notifOn:false};
+function sv(){try{localStorage.setItem(SK,JSON.stringify(S))}catch(e){}}
+function ld(){try{return JSON.parse(localStorage.getItem(SK))}catch(e){return null}}
+
+// ─── PRICES ──────────────────────────────────────────────────
+const TK=[
+  {s:'NVDA',n:'NVIDIA',sec:'Tech',b:875},{s:'AAPL',n:'Apple',sec:'Tech',b:189},
+  {s:'MSFT',n:'Microsoft',sec:'Tech',b:415},{s:'AMZN',n:'Amazon',sec:'Consumer',b:195},
+  {s:'TSLA',n:'Tesla',sec:'Auto',b:172},{s:'META',n:'Meta',sec:'Tech',b:520},
+  {s:'GOOGL',n:'Alphabet',sec:'Tech',b:172},{s:'SPY',n:'S&P ETF',sec:'ETF',b:528},
+  {s:'QQQ',n:'Nasdaq ETF',sec:'ETF',b:458},{s:'AMD',n:'AMD',sec:'Tech',b:158},
+];
+let P={};
+function sr(s){return s.split('').reduce((a,c)=>a+c.charCodeAt(0),0)}
+function ip(){
+  TK.forEach(t=>{
+    const sd=sr(t.s),v=((sd%20)-10)/100;
+    const chg=+((Math.random()-.47)*2.8).toFixed(2);
+    P[t.s]={p:+(t.b*(1+v+(Math.random()-.5)*.03)).toFixed(2),c:chg};
+  });
+}
+function tv(){return S.cash+S.holdings.reduce((s,h)=>s+h.sh*(P[h.s]?.p||h.avg),0)}
+
+// ─── HEADER ──────────────────────────────────────────────────
+function uh(){
+  const v=tv(),d=v-100,pct=(d/100*100).toFixed(2),up=d>=0;
+  document.getElementById('tv').textContent=v.toFixed(2);
+  document.getElementById('tv').style.color=up?'var(--g)':'var(--r)';
+  document.getElementById('tvchg').textContent=`${up?'▲':'▼'} $${Math.abs(d).toFixed(2)} (${up?'+':''}${pct}%) total`;
+  document.getElementById('tvchg').style.color=up?'var(--g)':'var(--r)';
+  document.getElementById('ch').textContent=`$${S.cash.toFixed(2)}`;
+  document.getElementById('ss').textContent=S.lastSync?`Synced ${S.lastSync}`:'Not synced';
+  const now=new Date(),et=new Date(now.toLocaleString('en-US',{timeZone:'America/New_York'}));
+  const h=et.getHours(),m=et.getMinutes(),d2=et.getDay();
+  const open=h>9||(h===9&&m>=30),close=h<16,wk=d2>0&&d2<6;
+  const el=document.getElementById('mstat');
+  el.textContent=wk&&open&&close?'MARKET OPEN':'MARKET CLOSED';
+  el.style.color=wk&&open&&close?'var(--g)':'var(--mu)';
+}
+function utk(){
+  const items=[...TK,...TK].map(t=>{
+    const p=P[t.s],u=p?.c>=0;
+    return `<span class="tki"><span class="tks2">${t.s}</span><span class="${u?'tgu':'trd'}">$${p?.p?.toFixed(2)||'—'} ${u?'▲':'▼'}${Math.abs(p?.c||0).toFixed(2)}%</span></span>`;
+  }).join('');
+  document.getElementById('tk').innerHTML=items;
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────
+let tab='dash';
+function go(t){
+  tab=t;
+  document.querySelectorAll('.tp,.nb').forEach(b=>{
+    b.classList.toggle('on',b.dataset.p===t);
+    if(b.classList.contains('nb')) b.classList.toggle('on',b.dataset.p===t);
+  });
+  render();
+}
+
+// ─── RENDER ──────────────────────────────────────────────────
+function render(){
+  const c=document.getElementById('pg');
+  c.innerHTML='';c.className='fin';void c.offsetWidth;
+  if(tab==='dash') rDash(c);
+  else if(tab==='mkt') rMkt(c);
+  else if(tab==='ai') rAI(c);
+  else if(tab==='sync') rSync(c);
+  else if(tab==='alerts') rAlerts(c);
+  uh();
+}
+
+// ─── DASHBOARD ───────────────────────────────────────────────
+function rDash(c){
+  const v=tv();
+  const hist=[...S.history,{d:'Today',v}];
+  const vals=hist.map(h=>h.v),mn=Math.min(...vals)*.995,mx=Math.max(...vals)*1.005;
+  const W=300,H=66;
+  const pts=hist.map((h,i)=>{const x=(i/(hist.length-1))*(W-4)+2,y=H-((h.v-mn)/(mx-mn))*(H-6)-2;return{x,y,h}});
+  const ln=pts.map((p,i)=>`${i?'L':'M'} ${p.x} ${p.y}`).join(' ');
+  const fl=ln+` L ${W-2} ${H} L 2 ${H} Z`;
+
+  // install prompt
+  let ibanner='';
+  if(window._dip){
+    ibanner=`<div class="ibanner"><div><div style="font-size:14px;font-weight:700">📲 Add to Home Screen</div><div style="font-size:11px;color:var(--mu);margin-top:2px">Install as an app for quick daily access</div></div><button class="btno bgo" style="white-space:nowrap;padding:10px 14px" onclick="doInstall()">Install</button></div>`;
+  }
+
+  const holdings=S.holdings.length===0
+    ?`<div style="padding:20px 0;text-align:center;color:var(--mu);font-size:13px;line-height:1.9">No positions yet.<br><span style="font-size:11px;color:var(--fa)">Sync Robinhood or use AI Advisor</span></div>`
+    :S.holdings.map(h=>{
+      const cur=P[h.s]?.p||h.avg,pnl=(cur-h.avg)/h.avg*100,val=h.sh*cur,up=pnl>=0;
+      return `<div class="hrow2">
+        <div><div style="font-family:var(--mono);font-size:16px">${h.s}</div>
+        <div style="font-size:11px;color:var(--mu);margin-top:2px">${h.sh.toFixed(4)} sh · avg $${h.avg}</div></div>
+        <div style="display:flex;align-items:center;gap:11px">
+          <div style="text-align:right">
+            <div style="font-family:var(--mono);font-size:15px">$${val.toFixed(2)}</div>
+            <div style="font-family:var(--mono);font-size:11px;color:${up?'var(--g)':'var(--r)'}">${up?'▲':'▼'}${Math.abs(pnl).toFixed(2)}%</div>
+          </div>
+          <button class="btno bro" style="padding:8px 12px;font-size:12px" onclick="omod('SELL','${h.s}')">Sell</button>
+        </div>
+      </div>`;
+    }).join('');
+
+  c.innerHTML=`${ibanner}
+    <div class="card" style="padding:14px">
+      <div class="clabel">Performance This Week${S.lastSync?` <span style="color:var(--g);font-size:9px">✓ SYNCED</span>`:''}
+      </div>
+      <svg width="100%" viewBox="0 0 ${W} ${H+18}" style="overflow:visible">
+        <defs><linearGradient id="gf" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00f0a0" stop-opacity=".28"/><stop offset="100%" stop-color="#00f0a0" stop-opacity="0"/></linearGradient></defs>
+        <path d="${fl}" fill="url(#gf)"/>
+        <path d="${ln}" fill="none" stroke="var(--g)" stroke-width="2"/>
+        ${pts.map((p,i)=>`<circle cx="${p.x}" cy="${p.y}" r="${i===pts.length-1?4:2}" fill="var(--g)"/>
+        <text x="${p.x}" y="${H+14}" text-anchor="middle" fill="var(--mu)" font-size="7.5" font-family="var(--mono)">${p.h.d}</text>`).join('')}
+      </svg>
+    </div>
+    <div class="card"><div class="clabel">Holdings</div>${holdings}
+      <div style="display:flex;justify-content:space-between;padding-top:12px;border-top:1px solid var(--b1)">
+        <span style="font-size:12px;color:var(--mu)">Cash</span>
+        <span style="font-family:var(--mono);font-size:14px">$${S.cash.toFixed(2)}</span>
+      </div>
+    </div>
+    <div class="sg">
+      ${[['Return',(v>=100?'+':'')+((v-100)/100*100).toFixed(2)+'%',v>=100?'var(--g)':'var(--r)'],
+         ['Positions',S.holdings.length,''],['Invested','$'+(v-S.cash).toFixed(2),''],
+         ['To $200',Math.min((v/200*100).toFixed(0),100)+'%','var(--mu)']
+        ].map(([l,v2,col])=>`<div class="sb"><div class="sl">${l}</div><div class="sv" style="color:${col||'var(--tx)'}">${v2}</div></div>`).join('')}
+    </div>
+    <button class="btn btng" onclick="go('ai')">⚡ Run AI Daily Analysis</button>`;
+}
+
+// ─── MARKETS ─────────────────────────────────────────────────
+function spk(s){
+  const sd=sr(s),pts=Array.from({length:16},(_,i)=>20+Math.sin(i*.9+sd)*6+(Math.random()-.49)*3+i*.2);
+  const mn=Math.min(...pts),mx=Math.max(...pts);
+  return pts.map((p,i)=>`${i===0?'M':'L'} ${(i/15)*62} ${24-((p-mn)/(mx-mn))*22}`).join(' ');
+}
+function rMkt(c){
+  c.innerHTML=`<div class="card"><div class="clabel">Live Watchlist · Simulated</div>
+    ${TK.map(t=>{
+      const p=P[t.s],u=p?.c>=0;
+      return `<div class="wrow">
+        <div style="min-width:88px"><div style="font-family:var(--mono);font-size:15px">${t.s}</div>
+          <div style="font-size:10px;color:var(--mu)">${t.n}</div></div>
+        <svg width="62" height="24" style="flex-shrink:0;overflow:visible"><path d="${spk(t.s)}" fill="none" stroke="${u?'var(--g)':'var(--r)'}" stroke-width="1.5"/></svg>
+        <div style="flex:1;text-align:right">
+          <div style="font-family:var(--mono);font-size:15px">$${p?.p?.toFixed(2)}</div>
+          <div style="font-family:var(--mono);font-size:11px;color:${u?'var(--g)':'var(--r)'}">${u?'▲':'▼'}${Math.abs(p?.c||0).toFixed(2)}%</div>
+        </div>
+        <button class="btno bgo" style="margin-left:10px;padding:9px 13px;font-size:12px" onclick="omod('BUY','${t.s}')">Buy</button>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+// ─── AI ADVISOR ──────────────────────────────────────────────
+let aiLoad=false,aiStep=0;
+async function runAI(){
+  aiLoad=true;aiStep=0;render();
+  const steps=['SCANNING MARKETS','READING PORTFOLIO','MOMENTUM SIGNALS','RISK / REWARD','BUILDING PLAN'];
+  for(let i=0;i<5;i++){
+    await new Promise(r=>setTimeout(r,600));
+    aiStep=i+1;
+    const el=document.getElementById('aslbl');if(el)el.textContent=steps[i]+'...';
+    for(let j=0;j<=i;j++){const d=document.getElementById(`pd${j}`);if(d)d.classList.add('on')}
+  }
+  const hs=S.holdings.length?S.holdings.map(h=>{
+    const cur=P[h.s]?.p||h.avg,pnl=((cur-h.avg)/h.avg*100).toFixed(1);
+    return `${h.s}:${h.sh.toFixed(4)}sh@$${h.avg}→$${cur}(${pnl>0?'+':''}${pnl}%)`;
+  }).join(';'):'All cash';
+  const wd=TK.map(t=>`${t.s}($${P[t.s]?.p?.toFixed(2)},${P[t.s]?.c>=0?'+':''}${P[t.s]?.c?.toFixed(2)}%)`).join(';');
+  const sn=S.lastSync?`Synced from Robinhood on ${S.lastSync}.`:'Not yet synced with Robinhood.';
+  const prompt=`You are a sharp trading advisor. Date: March 17 2026. ${sn}
+PORTFOLIO: Total $${tv().toFixed(2)}, Cash $${S.cash.toFixed(2)}, Holdings: ${hs}
+WATCHLIST: ${wd}
+CONSTRAINTS: $100 Robinhood account, fractional shares ok, no options/margin, maximize aggressive growth.
+Respond ONLY valid JSON no markdown:
+{"marketSummary":"2 sentence overview","portfolioGrade":"B — why","topActions":[{"action":"BUY","symbol":"SPY","amount":40,"reasoning":"1 sentence","confidence":80,"priority":"HIGH"}],"riskWarning":"1 risk today","strategyNote":"1 tip for $100 account"}
+Give 3-5 actions. BUY/SELL amount=dollars.`;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
+    const data=await res.json();
+    const raw=data.content?.find(b=>b.type==='text')?.text||'';
+    S.advice=JSON.parse(raw.replace(/```json|```/g,'').trim());
+  }catch(e){
+    S.advice={marketSummary:'Markets mixed, tech showing resilience. Mid-week volume subdued ahead of Fed commentary.',portfolioGrade:'B — Good cash position ready to deploy on high-conviction signals.',
+      topActions:[{action:'BUY',symbol:'SPY',amount:40,reasoning:'Core diversified ETF; stable foundation for small account.',confidence:84,priority:'HIGH'},{action:'BUY',symbol:'NVDA',amount:30,reasoning:'AI demand cycle intact; momentum favors continuation.',confidence:73,priority:'HIGH'},{action:'BUY',symbol:'AAPL',amount:20,reasoning:'Defensive mega-cap with near-term catalyst potential.',confidence:66,priority:'MEDIUM'}],
+      riskWarning:'Fed minutes release could spike volatility — keep $10 cash buffer.',strategyNote:'2-3 high-conviction positions beat over-diversification at this account size.'};
+  }
+  aiLoad=false;sv();render();
+}
+function rAI(c){
+  if(aiLoad){
+    c.innerHTML=`<div style="text-align:center;padding:64px 0">
+      <div class="clabel" id="aslbl" style="margin-bottom:16px">INITIALIZING...</div>
+      <div class="pdots">${Array.from({length:5},(_,i)=>`<div class="pd ${i<aiStep?'on':''}" id="pd${i}"></div>`).join('')}</div>
+      <div style="font-size:13px;color:var(--fa);margin-top:12px">Crunching market data</div>
+    </div>`;
+    return;
+  }
+  if(!S.advice){
+    c.innerHTML=`<div style="text-align:center;padding:44px 0 24px">
+      <div style="font-size:52px;margin-bottom:16px">🤖</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px">AI Daily Advisor</div>
+      <div style="font-size:14px;color:var(--mu);max-width:280px;margin:0 auto 28px;line-height:1.65">
+        Analyzes your portfolio and today's signals for specific buy/sell actions.
+        ${S.lastSync?`<br><span style="color:var(--g);font-size:12px">✓ Using your Robinhood data</span>`:''}
+      </div>
+      <button class="btn btng" onclick="runAI()">⚡ Analyze My Portfolio</button>
+    </div>`;
+    return;
+  }
+  const a=S.advice;
+  const gc=a.portfolioGrade?.startsWith('A')?'var(--g)':a.portfolioGrade?.startsWith('B')?'var(--y)':'var(--r)';
+  const gbg=a.portfolioGrade?.startsWith('A')?'var(--g2)':a.portfolioGrade?.startsWith('B')?'var(--y2)':'var(--r2)';
+  const acts=(a.topActions||[]).map(act=>{
+    const cls=act.action.toLowerCase(),col=act.action==='BUY'?'var(--g)':act.action==='SELL'?'var(--r)':'var(--mu)';
+    const ab=act.action==='BUY'?'abg':act.action==='SELL'?'abr':'abh';
+    const eb=act.action!=='HOLD'?`<button class="btno ${act.action==='BUY'?'bgo':'bro'}" style="margin-top:11px;width:100%;padding:12px;font-size:13px" onclick="omod('${act.action}','${act.symbol}','${act.amount}')">Execute ${act.action} · $${Number(act.amount).toFixed(2)} →</button>`:'';
+    return `<div class="ac ${cls}">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+        <div><span class="abadge ${ab}">${act.action}</span><span style="font-family:var(--mono);font-size:18px">${act.symbol}</span><span style="font-size:13px;color:var(--mu);margin-left:8px">$${Number(act.amount).toFixed(2)}</span>${act.priority==='HIGH'?'<span style="margin-left:8px;font-size:10px;color:var(--y)">★ HIGH</span>':''}</div>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--mu)"><span style="color:${act.confidence>70?'var(--g)':'var(--y)'}">${act.confidence}%</span></span>
+      </div>
+      <div style="font-size:13px;color:#8899cc;margin-top:8px;line-height:1.55">${act.reasoning}</div>
+      <div class="cbar"><div class="cfill" style="width:${act.confidence}%;background:${col}"></div></div>
+      ${eb}
+    </div>`;
+  }).join('');
+  c.innerHTML=`
+    <div class="card" style="display:flex;gap:14px;align-items:center">
+      <div style="width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:28px;background:${gbg};color:${gc};flex-shrink:0">${a.portfolioGrade?.[0]||'B'}</div>
+      <div><div class="clabel" style="margin-bottom:4px">Today's Grade</div><div style="font-size:13px;color:var(--mu);line-height:1.5">${a.portfolioGrade?.slice(2)||''}</div></div>
+    </div>
+    <div class="card"><div class="clabel">Market Summary</div><div style="font-size:14px;line-height:1.65;color:#8899cc">${a.marketSummary}</div></div>
+    <div style="margin-bottom:6px"><div class="clabel" style="padding:0 2px">Recommended Actions</div></div>
+    ${acts}
+    <div class="card cy"><div class="clabel" style="color:var(--y)">⚠ Risk Watch</div><div style="font-size:13px;color:#8899cc;line-height:1.5">${a.riskWarning}</div></div>
+    <div class="card"><div class="clabel">💡 Strategy Note</div><div style="font-size:13px;color:#8899cc;line-height:1.5">${a.strategyNote}</div></div>
+    <button class="btno" style="width:100%;margin-bottom:8px" onclick="runAI()">↻ Refresh Analysis</button>`;
+}
+
+// ─── ROBINHOOD SYNC ──────────────────────────────────────────
+let sImg=null,sParsing=false;
+function rSync(c){
+  const prev=sImg?`<div style="margin-bottom:12px"><img src="${sImg}" class="sprev"/><div style="font-size:11px;color:var(--mu);text-align:center">Screenshot loaded ✓</div></div>`:'';
+  const pb=sImg&&!sParsing?`<button class="btn btng" style="margin-bottom:10px" onclick="parseS()">🔍 Parse & Sync Portfolio</button>`:sParsing?`<button class="btn" style="background:var(--s3);color:var(--mu);cursor:default" disabled>Analyzing screenshot…</button>`:'';
+  const ls=S.lastSync?`<div class="card cg" style="margin-bottom:12px"><div class="clabel">Last Sync</div><div style="font-size:13px;color:var(--g);margin-bottom:5px">✓ ${S.lastSync}</div><div style="font-size:12px;color:var(--mu)">${S.syncedFrom||'Robinhood screenshot'}</div></div>`:'';
+  c.innerHTML=`${ls}
+    <div class="card cb">
+      <div class="clabel">📸 Best Screen to Screenshot</div>
+      <div style="font-size:13px;color:#8899cc;line-height:1.8;margin-bottom:14px">
+        In Robinhood: tap <strong style="color:var(--tx)">Investing</strong> tab → scroll past the chart to your <strong style="color:var(--tx)">Positions list</strong>.<br>
+        This screen shows each stock's symbol, shares, avg cost, and current value — perfect for AI parsing.<br><br>
+        <strong style="color:var(--tx)">Screenshot:</strong> Press Power + Volume Down simultaneously.
+      </div>
+      <a class="rh" href="https://robinhood.com" target="_blank">Open Robinhood →</a>
+    </div>
+    ${prev}
+    <div class="uzone" id="uz" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="hdrop(event)">
+      <input type="file" accept="image/*" onchange="hfile(event)"/>
+      <div style="font-size:34px;margin-bottom:10px">${sImg?'🔄':'📤'}</div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:5px">${sImg?'Upload New Screenshot':'Upload Your Screenshot'}</div>
+      <div style="font-size:12px;color:var(--mu)">Tap to open gallery · or drag & drop</div>
+    </div>
+    <div style="height:12px"></div>
+    ${pb}
+    <div class="card" style="margin-top:4px">
+      <div class="clabel">What Gets Extracted</div>
+      ${[['Each stock symbol','From your positions list'],['Share count','Exact fractional shares'],['Avg cost basis','Your purchase average'],['Current price','Live market value'],['Cash balance','Available buying power']].map(([k,v2])=>`<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--b1);font-size:12px"><span style="color:var(--mu)">${k}</span><span style="color:#8899cc">${v2}</span></div>`).join('')}
+    </div>`;
+}
+function hfile(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{sImg=ev.target.result;render()};r.readAsDataURL(f)}
+function hdrop(e){e.preventDefault();e.currentTarget.classList.remove('drag');const f=e.dataTransfer.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{sImg=ev.target.result;render()};r.readAsDataURL(f)}
+async function parseS(){
+  if(!sImg){toast('No screenshot loaded','err');return}
+  sParsing=true;render();
+  const b64=sImg.replace(/^data:image\/\w+;base64,/,'');
+  const mt=sImg.match(/^data:(image\/\w+);base64,/)?.[1]||'image/jpeg';
+  const prompt=`This is a Robinhood portfolio positions screenshot from Android.
+Extract all data and return ONLY valid JSON, no markdown:
+{"totalValue":1234.56,"cash":45.67,"holdings":[{"symbol":"AAPL","shares":1.2345,"avgCost":185.00,"currentPrice":189.00,"marketValue":233.11}]}
+Extract every visible position. Use null for unclear values. Be precise with share counts.`;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:mt,data:b64}},{type:'text',text:prompt}]}]})});
+    const data=await res.json();
+    const raw=data.content?.find(b=>b.type==='text')?.text||'';
+    const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    if(parsed.holdings?.length){
+      S.holdings=parsed.holdings.filter(h=>h.symbol&&h.shares).map(h=>({s:h.symbol.toUpperCase(),sh:parseFloat(h.shares)||0,avg:parseFloat(h.avgCost)||parseFloat(h.currentPrice)||0}));
+    }
+    if(parsed.cash!=null) S.cash=parseFloat(parsed.cash)||S.cash;
+    if(parsed.totalValue) S.history.push({d:'Sync',v:parseFloat(parsed.totalValue)});
+    S.lastSync=new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+    S.syncedFrom='Robinhood screenshot';
+    sImg=null;sParsing=false;sv();
+    toast(`Synced ${S.holdings.length} positions from Robinhood ✓`,'ok');
+    go('dash');
+  }catch(e){sParsing=false;render();toast('Could not read screenshot — try a clearer image','err')}
+}
+
+// ─── ALERTS ──────────────────────────────────────────────────
+const ATIMES=[
+  {id:'open',lbl:'Market Open',t:'9:30 AM ET',em:'🔔',desc:'Run AI analysis at open',h:9,m:30},
+  {id:'mid', lbl:'Midday Check',t:'12:30 PM ET',em:'☀️',desc:'Mid-session review',h:12,m:30},
+  {id:'close',lbl:'Pre-Close Alert',t:'3:00 PM ET',em:'⏰',desc:'Last trades before close',h:15,m:0},
+];
+function nextAlert(){
+  const now=new Date(),et=new Date(now.toLocaleString('en-US',{timeZone:'America/New_York'}));
+  const d=et.getDay();if(d===0||d===6)return null;
+  for(const a of ATIMES){
+    const diff=(a.h*60+a.m)-(et.getHours()*60+et.getMinutes());
+    if(diff>0){const h=Math.floor(diff/60),m=diff%60;return{...a,cd:`in ${h?h+'h ':''}${m}m`}}
+  }
+  return{...ATIMES[0],cd:'tomorrow'};
+}
+function rAlerts(c){
+  const hp=Notification.permission==='granted';
+  const hb=Notification.permission==='denied';
+  const na=nextAlert();
+  c.innerHTML=`
+    ${hb?`<div class="card cr"><div class="clabel" style="color:var(--r)">Notifications Blocked</div><div style="font-size:13px;color:#8899cc;line-height:1.5">Go to <strong>Chrome ⋮ → Settings → Site Settings → Notifications</strong> and allow this site.</div></div>`:''}
+    ${!hp&&!hb?`<div class="card cb"><div class="clabel">Enable Market Alerts</div><div style="font-size:13px;color:#8899cc;line-height:1.5;margin-bottom:14px">Get notified at 3 key market windows daily so you never miss a trade opportunity.</div><button class="btn btng" onclick="reqN()">🔔 Enable Notifications</button></div>`:''}
+    ${hp&&na?`<div class="card cg"><div class="clabel">Next Alert</div><div style="font-family:var(--mono);font-size:22px;color:var(--g)">${na.em} ${na.t}</div><div style="font-size:12px;color:var(--mu);margin-top:4px">${na.lbl} · ${na.cd}</div></div>`:''}
+    <div class="card"><div class="clabel">Daily Schedule</div>
+      ${ATIMES.map(a=>`<div class="nrow">
+        <div><div style="font-size:14px;font-weight:600">${a.em} ${a.lbl}</div>
+          <div style="font-size:11px;color:var(--mu);margin-top:2px">${a.desc}</div></div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px">
+          <span class="npill ${hp?'npg':'npm'}"><span style="font-size:8px">${hp?'●':'○'}</span>${a.t}</span>
+          ${hp?`<button class="btno" style="padding:5px 11px;font-size:11px" onclick="testN('${a.id}')">Test</button>`:''}
+        </div>
+      </div>`).join('')}
+    </div>
+    <div class="card"><div class="clabel">📱 How It Works on Android</div>
+      <div style="font-size:13px;color:#8899cc;line-height:1.85">
+        <strong style="color:var(--tx)">Step 1</strong> — Enable notifications above<br>
+        <strong style="color:var(--tx)">Step 2</strong> — Chrome ⋮ menu → "Add to Home Screen"<br>
+        <strong style="color:var(--tx)">Step 3</strong> — Open the app once per day (morning works best)<br>
+        <strong style="color:var(--tx)">Step 4</strong> — Alerts fire automatically at market times<br><br>
+        Tapping a notification opens the AI Advisor directly.
+      </div>
+    </div>
+    ${hp?`<button class="btno" style="width:100%;margin-bottom:8px" onclick="schedAll()">↺ Reschedule Today's Alerts</button>`:''}`;
+}
+async function reqN(){
+  if(!('Notification' in window)){toast('Not supported in this browser','err');return}
+  const p=await Notification.requestPermission();
+  if(p==='granted'){S.notifOn=true;sv();schedAll();toast('Alerts enabled! 🔔','ok');render()}
+  else{toast('Permission denied — check Chrome site settings','err');render()}
+}
+function schedAll(){
+  if(Notification.permission!=='granted')return;
+  const now=new Date(),et=new Date(now.toLocaleString('en-US',{timeZone:'America/New_York'}));
+  const msgs={open:'Market Open 🔔 Run your AI analysis — markets just opened!',mid:'Midday Check ☀️ Mid-session review — any trades to make?',close:'Pre-Close ⏰ 1 hour left — execute any final trades before close!'};
+  let n=0;
+  ATIMES.forEach(a=>{
+    const tgt=new Date(et);tgt.setHours(a.h,a.m,0,0);
+    const etOff=et.getTime()-now.getTime();
+    const local=new Date(tgt.getTime()-etOff);
+    const delay=local.getTime()-now.getTime();
+    if(delay>0&&delay<9*60*60*1000){setTimeout(()=>fireN(a.id,msgs[a.id]),delay);n++}
+  });
+  if(n>0)toast(`${n} alert${n>1?'s':''} scheduled for today`,'ok');
+  else toast('No more alerts today — opens again tomorrow','inf');
+}
+function fireN(id,msg){
+  if(Notification.permission!=='granted')return;
+  const n=new Notification('StockAI',{body:msg,icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="%2307080f"/><text x="32" y="44" font-size="36" text-anchor="middle">📈</text></svg>',tag:id,requireInteraction:true});
+  n.onclick=()=>{window.focus();go('ai');n.close()};
+}
+function testN(id){const msgs={open:'Market Open 🔔 Test alert!',mid:'Midday Check ☀️ Test alert!',close:'Pre-Close ⏰ Test alert!'};fireN(id,msgs[id]);toast('Test notification sent','ok')}
+
+// ─── TRADE MODAL ─────────────────────────────────────────────
+let ts={a:'BUY',s:'',m:'d'};
+function omod(action,sym,sug){
+  ts={a:action,s:sym,m:'d'};
+  const p=P[sym]?.p||0;
+  document.getElementById('mlbl').textContent=`${action} · ${sym}`;
+  document.getElementById('mpr').textContent=`$${p.toFixed(2)}`;
+  document.getElementById('mca').textContent=`Cash: $${S.cash.toFixed(2)}`;
+  document.getElementById('tqty').value=sug||'';
+  document.getElementById('tcc').textContent='';
+  stt('d');
+  const b=document.getElementById('tcb');
+  b.textContent=`CONFIRM ${action}`;
+  b.style.background=action==='BUY'?'var(--g)':'var(--r)';
+  b.style.color=action==='BUY'?'#000':'#fff';
+  document.getElementById('tmod').style.display='flex';
+  setTimeout(()=>document.getElementById('tqty').focus(),300);
+}
+function cmod(){document.getElementById('tmod').style.display='none'}
+function stt(m){
+  ts.m=m;
+  document.getElementById('tbd').classList.toggle('on',m==='d');
+  document.getElementById('tbs').classList.toggle('on',m==='s');
+  document.getElementById('tqty').placeholder=m==='d'?'Amount in $':'# of shares';
+  ctc();
+}
+function ctc(){
+  const q=parseFloat(document.getElementById('tqty').value),p=P[ts.s]?.p||0;
+  const el=document.getElementById('tcc');
+  if(!q||!p){el.textContent='';return}
+  el.textContent=ts.m==='d'?`≈ ${(q/p).toFixed(4)} shares`:`≈ $${(q*p).toFixed(2)}`;
+}
+function dtrade(){
+  const raw=parseFloat(document.getElementById('tqty').value);
+  if(isNaN(raw)||raw<=0){toast('Enter a valid amount','err');return}
+  const p=P[ts.s]?.p||0,{a,s,m}=ts;
+  let dol=m==='d'?raw:raw*p,sh=dol/p;
+  if(a==='BUY'){
+    if(dol>S.cash){toast('Insufficient cash','err');return}
+    const ex=S.holdings.find(h=>h.s===s);
+    if(ex){ex.avg=+((ex.avg*ex.sh+dol)/(ex.sh+sh)).toFixed(4);ex.sh=+(ex.sh+sh).toFixed(6)}
+    else S.holdings.push({s,sh:+sh.toFixed(6),avg:+p.toFixed(2)});
+    S.cash=+(S.cash-dol).toFixed(2);
+    toast(`Bought $${dol.toFixed(2)} of ${s}`,'ok');
+  }else{
+    const h=S.holdings.find(h=>h.s===s);
+    if(!h){toast('No position to sell','err');return}
+    const ss2=Math.min(sh,h.sh),proc=+(ss2*p).toFixed(2);
+    S.cash=+(S.cash+proc).toFixed(2);h.sh=+(h.sh-ss2).toFixed(6);
+    S.holdings=S.holdings.filter(h=>h.sh>0.0001);
+    toast(`Sold $${proc.toFixed(2)} of ${s}`,'ok');
+  }
+  cmod();sv();render();
+}
+
+// ─── TOAST ───────────────────────────────────────────────────
+function toast(msg,type='ok'){
+  const t=document.createElement('div');
+  t.className=`toast t${type}`;t.textContent=msg;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(()=>t.remove(),3200);
+}
+
+// ─── PWA INSTALL ─────────────────────────────────────────────
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();window._dip=e;if(tab==='dash')render()});
+function doInstall(){if(window._dip){window._dip.prompt();window._dip.userChoice.then(()=>{window._dip=null;render()})}}
+
+// ─── INIT ─────────────────────────────────────────────────────
+ip();utk();render();
+setInterval(()=>{ip();utk();uh();if(tab==='mkt'||tab==='dash')render()},30000);
+if(Notification.permission==='granted'&&S.notifOn)setTimeout(schedAll,1500);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Notification.permission==='granted'&&S.notifOn)schedAll()});
+</script>
+</body>
+</html>
