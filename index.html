@@ -561,18 +561,18 @@ function rAI(c){
     return;
   }
   if(!S.advice){
-    const changed = S.portfolioChanged;
-    c.innerHTML=`<div style="text-align:center;padding:44px 0 24px">
-      <div style="font-size:52px;margin-bottom:16px">${changed?'🔄':'🤖'}</div>
-      <div style="font-size:18px;font-weight:700;margin-bottom:8px">${changed?'Portfolio Updated':'AI Daily Advisor'}</div>
-      <div style="font-size:14px;color:var(--mu);max-width:300px;margin:0 auto 28px;line-height:1.65">
-        ${changed
-          ?'Your holdings have changed. Run a fresh analysis to get updated recommendations based on your current portfolio.'
-          :'Analyzes your portfolio and today's signals for specific buy/sell actions.'}
-        ${S.lastSync?`<br><span style="color:var(--g);font-size:12px">✓ Synced ${S.lastSync}</span>`:''}
-      </div>
-      <button class="btn btng" onclick="runAI()">⚡ ${changed?'Re-Analyze Portfolio':'Analyze My Portfolio'}</button>
-    </div>`;
+    const changed=S.portfolioChanged;
+    const icon=changed?'🔄':'🤖';
+    const title=changed?'Portfolio Updated':'AI Daily Advisor';
+    const desc=changed?'Your holdings changed. Run a fresh analysis for updated recommendations.':'Analyzes your portfolio and market signals for specific buy/sell actions.';
+    const syncNote=S.lastSync?'<br><span style="color:#00f0a0;font-size:12px">✓ Synced '+S.lastSync+'</span>':'';
+    const btnLabel=changed?'Re-Analyze Portfolio':'Analyze My Portfolio';
+    c.innerHTML='<div style="text-align:center;padding:44px 0 24px">'
+      +'<div style="font-size:52px;margin-bottom:16px">'+icon+'</div>'
+      +'<div style="font-size:18px;font-weight:700;margin-bottom:8px">'+title+'</div>'
+      +'<div style="font-size:14px;color:#4a5280;max-width:300px;margin:0 auto 28px;line-height:1.65">'+desc+syncNote+'</div>'
+      +'<button class="btn btng" onclick="runAI()">⚡ '+btnLabel+'</button>'
+      +'</div>';
     return;
   }
   const a=S.advice;
