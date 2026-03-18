@@ -278,7 +278,7 @@ self.addEventListener('notificationclick',e=>{e.notification.close();e.waitUntil
 })();
 
 // ─── STATE ───────────────────────────────────────────────────
-const SK='sai7';
+const SK='sai8';
 const JOEL_HOLDINGS=[
   {s:'SNAP', sh:5, avg:4.66},
   {s:'CLNE', sh:10,     avg:2.17},
@@ -313,7 +313,21 @@ let S=ld()||{
   advice:null,notifOn:false,portfolioChanged:false
 };
 function sv(){try{localStorage.setItem(SK,JSON.stringify(S))}catch(e){}}
-function ld(){try{return JSON.parse(localStorage.getItem(SK))}catch(e){return null}}
+function ld(){
+  try{
+    const d=JSON.parse(localStorage.getItem(SK));
+    // if stored state exists but has no holdings, restore defaults
+    if(d&&(!d.holdings||d.holdings.length===0)){
+      d.holdings=JOEL_HOLDINGS;
+      d.cash=JOEL_CASH;
+      d.lastSync='Mar 17, 5:48 PM';
+      d.syncedFrom='Robinhood screenshot';
+      d.startValue=JOEL_TOTAL;
+      if(!d.history||d.history.length<2) d.history=[{d:'Mar 13',v:358.2},{d:'Mar 14',v:362.77},{d:'Mar 17',v:JOEL_TOTAL}];
+    }
+    return d;
+  }catch(e){return null}
+}
 
 // ─── PRICES ──────────────────────────────────────────────────
 const TK=[
@@ -398,9 +412,16 @@ function render(){
 function rDash(c){
   const v=tv();
   const hist=[...S.history,{d:'Today',v}];
-  const vals=hist.map(h=>h.v),mn=Math.min(...vals)*.995,mx=Math.max(...vals)*1.005;
+  // guard: need at least 2 points for chart, pad if needed
+  while(hist.length<2) hist.unshift({d:'—',v:hist[0]?.v||v});
+  const vals=hist.map(h=>h.v),rawMn=Math.min(...vals),rawMx=Math.max(...vals);
+  const mn=rawMn*(rawMn===rawMx?0.98:0.995), mx=rawMx*(rawMn===rawMx?1.02:1.005);
   const W=300,H=66;
-  const pts=hist.map((h,i)=>{const x=(i/(hist.length-1))*(W-4)+2,y=H-((h.v-mn)/(mx-mn))*(H-6)-2;return{x,y,h}});
+  const pts=hist.map((h,i)=>{
+    const x=hist.length>1?(i/(hist.length-1))*(W-4)+2:W/2;
+    const y=mx>mn?H-((h.v-mn)/(mx-mn))*(H-6)-2:H/2;
+    return{x,y,h};
+  });
   const ln=pts.map((p,i)=>`${i?'L':'M'} ${p.x} ${p.y}`).join(' ');
   const fl=ln+` L ${W-2} ${H} L 2 ${H} Z`;
 
