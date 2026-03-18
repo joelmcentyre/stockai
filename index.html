@@ -278,7 +278,7 @@ self.addEventListener('notificationclick',e=>{e.notification.close();e.waitUntil
 })();
 
 // ─── STATE ───────────────────────────────────────────────────
-const SK='sai6';
+const SK='sai7';
 const JOEL_HOLDINGS=[
   {s:'SNAP', sh:5, avg:4.66},
   {s:'CLNE', sh:10,     avg:2.17},
@@ -310,7 +310,7 @@ let S=ld()||{
     {d:'Mar 13',v:358.2},{d:'Mar 14',v:362.77},
     {d:'Mar 17',v:JOEL_TOTAL}
   ],
-  advice:null,notifOn:false
+  advice:null,notifOn:false,portfolioChanged:false
 };
 function sv(){try{localStorage.setItem(SK,JSON.stringify(S))}catch(e){}}
 function ld(){try{return JSON.parse(localStorage.getItem(SK))}catch(e){return null}}
@@ -481,7 +481,7 @@ function rMkt(c){
 // ─── AI ADVISOR ──────────────────────────────────────────────
 let aiLoad=false,aiStep=0;
 async function runAI(){
-  aiLoad=true;aiStep=0;render();
+  aiLoad=true;aiStep=0;S.portfolioChanged=false;render();
   const steps=['SCANNING MARKETS','READING PORTFOLIO','MOMENTUM SIGNALS','RISK / REWARD','BUILDING PLAN'];
   for(let i=0;i<5;i++){
     await new Promise(r=>setTimeout(r,600));
@@ -535,14 +535,17 @@ function rAI(c){
     return;
   }
   if(!S.advice){
+    const changed = S.portfolioChanged;
     c.innerHTML=`<div style="text-align:center;padding:44px 0 24px">
-      <div style="font-size:52px;margin-bottom:16px">🤖</div>
-      <div style="font-size:18px;font-weight:700;margin-bottom:8px">AI Daily Advisor</div>
-      <div style="font-size:14px;color:var(--mu);max-width:280px;margin:0 auto 28px;line-height:1.65">
-        Analyzes your portfolio and today's signals for specific buy/sell actions.
-        ${S.lastSync?`<br><span style="color:var(--g);font-size:12px">✓ Using your Robinhood data</span>`:''}
+      <div style="font-size:52px;margin-bottom:16px">${changed?'🔄':'🤖'}</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px">${changed?'Portfolio Updated':'AI Daily Advisor'}</div>
+      <div style="font-size:14px;color:var(--mu);max-width:300px;margin:0 auto 28px;line-height:1.65">
+        ${changed
+          ?'Your holdings have changed. Run a fresh analysis to get updated recommendations based on your current portfolio.'
+          :'Analyzes your portfolio and today's signals for specific buy/sell actions.'}
+        ${S.lastSync?`<br><span style="color:var(--g);font-size:12px">✓ Synced ${S.lastSync}</span>`:''}
       </div>
-      <button class="btn btng" onclick="runAI()">⚡ Analyze My Portfolio</button>
+      <button class="btn btng" onclick="runAI()">⚡ ${changed?'Re-Analyze Portfolio':'Analyze My Portfolio'}</button>
     </div>`;
     return;
   }
@@ -674,11 +677,15 @@ function doTextSync(){
   S.history.push({d:'Sync',v:tv()});
   sv();
   toast(`Synced ${valid.length} positions${skipped?' ('+skipped+' $0 skipped)':''}  \u2713`,'ok');
+  S.advice=null;  // clear stale advice after sync
+  S.portfolioChanged=true;
   setTimeout(fetchLivePrices,600);
   go('dash');
 }
 function removeHolding(sym){
-  S.holdings=S.holdings.filter(h=>h.s!==sym);sv();render();toast('Removed '+sym,'ok');
+  S.holdings=S.holdings.filter(h=>h.s!==sym);
+  S.advice=null; S.portfolioChanged=true;
+  sv();render();toast('Removed '+sym,'ok');
 }
 function addHoldingPrompt(){
   const sym=prompt('Stock symbol (e.g. AAPL):')?.toUpperCase().trim();
@@ -817,6 +824,8 @@ function dtrade(){
     S.holdings=S.holdings.filter(h=>h.sh>0.0001);
     toast(`Sold $${proc.toFixed(2)} of ${s}`,'ok');
   }
+  S.advice=null;  // clear stale advice after trade
+  S.portfolioChanged=true;
   cmod();sv();render();
 }
 
