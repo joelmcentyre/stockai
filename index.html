@@ -476,7 +476,8 @@ function rDash(c){
          ['To $1,000',Math.min((v/1000*100).toFixed(0),100)+'%','var(--mu)']
         ].map(([l,v2,col])=>`<div class="sb"><div class="sl">${l}</div><div class="sv" style="color:${col||'var(--tx)'}">${v2}</div></div>`).join('')}
     </div>
-    <button class="btn btng" onclick="go('ai')">⚡ Run AI Daily Analysis</button>`;
+    <button class="btn btng" onclick="go('ai')">⚡ Run AI Daily Analysis</button>
+    <button class="btno" style="width:100%;margin-top:8px;font-size:12px;color:var(--mu)" onclick="hardReset()">↺ Restore My Portfolio</button>`;
 }
 
 // ─── MARKETS ─────────────────────────────────────────────────
@@ -867,6 +868,31 @@ window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();window._dip
 function doInstall(){if(window._dip){window._dip.prompt();window._dip.userChoice.then(()=>{window._dip=null;render()})}}
 
 // ─── INIT ─────────────────────────────────────────────────────
+// ─── FORCE LOAD CHECK ────────────────────────────────────────
+// If portfolio is empty or at $100 default, force-load Joel's real holdings
+(function forceLoad(){
+  if(!S.holdings||S.holdings.length===0||S.cash===100){
+    // clear ALL possible old keys
+    ['stockai_joel','sai8','sai7','sai6','sai5','sai4','sai3'].forEach(k=>{
+      try{localStorage.removeItem(k)}catch(e){}
+    });
+    S={...DEFAULTS};
+    sv();
+    console.log('Force loaded default holdings:', S.holdings.length, 'positions');
+  }
+})();
+
+function hardReset(){
+  if(!confirm('Reset to your saved Robinhood portfolio?')) return;
+  ['stockai_joel','sai8','sai7','sai6','sai5','sai4','sai3'].forEach(k=>{
+    try{localStorage.removeItem(k)}catch(e){}
+  });
+  S={...DEFAULTS};
+  sv();
+  toast('Portfolio restored ✓','ok');
+  render();
+}
+
 ip();utk();render();
 setInterval(()=>{ip();utk();uh();if(tab==='mkt'||tab==='dash')render()},30000);
 setTimeout(fetchLivePrices,2000); // auto-fetch live prices on load
