@@ -513,40 +513,79 @@ async function runAI(){
     await new Promise(r=>setTimeout(r,600));
     aiStep=i+1;
     const el=document.getElementById('aslbl');if(el)el.textContent=steps[i]+'...';
-    for(let j=0;j<=i;j++){const d=document.getElementById(`pd${j}`);if(d)d.classList.add('on')}
+    for(let j=0;j<=i;j++){const d=document.getElementById('pd'+j);if(d)d.classList.add('on')}
   }
-  const hs=S.holdings.length?S.holdings.map(h=>{
-    const cur=P[h.s]?.p||h.avg,pnl=((cur-h.avg)/h.avg*100).toFixed(1);
-    return `${h.s}:${h.sh.toFixed(4)}sh@$${h.avg}→$${cur}(${pnl>0?'+':''}${pnl}%)`;
-  }).join(';'):'All cash';
-  const wd=TK.map(t=>`${t.s}($${P[t.s]?.p?.toFixed(2)},${P[t.s]?.c>=0?'+':''}${P[t.s]?.c?.toFixed(2)}%)`).join(';');
-  const sn=S.lastSync?`Synced from Robinhood on ${S.lastSync}.`:'Not yet synced with Robinhood.';
-  const prompt=`You are a sharp trading advisor. Date: March 17 2026. ${sn}
-REAL ROBINHOOD PORTFOLIO: Total $${tv().toFixed(2)}, Cash $${S.cash.toFixed(2)}, Goal: $1,000
-Holdings: ${hs}
-Watchlist: ${wd}
-CONTEXT: This is a real account starting at $366.24. Heavy in speculative small/micro caps. Several positions are near-zero. Only $30 cash available. Investor wants aggressive growth toward $1,000.
-Respond ONLY valid JSON no markdown:
-{"marketSummary":"2 sentence market overview","portfolioGrade":"C+ — why","topActions":[{"action":"SELL","symbol":"OPTT","amount":3.90,"reasoning":"1 sentence","confidence":80,"priority":"HIGH"}],"riskWarning":"1 specific risk for this portfolio today","strategyNote":"1 concrete tip for growing this $366 account toward $1000"}
-Give 3-5 specific actions. For SELL use current market value as amount. For BUY use dollars to deploy from $${S.cash.toFixed(2)} cash. Be direct and honest about weak positions.`;
+
+  // Build current holdings summary from actual state
+  const hs=S.holdings.length
+    ?S.holdings.map(h=>{
+        const cur=P[h.s]?.p||h.avg;
+        const pnl=((cur-h.avg)/h.avg*100).toFixed(1);
+        const val=(h.sh*cur).toFixed(2);
+        return h.s+':'+h.sh.toFixed(4)+'sh@$'+h.avg+' now $'+cur+' val=$'+val+' ('+pnl+'%)';
+      }).join('; ')
+    :'No holdings — all cash $'+S.cash.toFixed(2);
+
+  const totalVal=tv().toFixed(2);
+  const cashNow=S.cash.toFixed(2);
+  const holdingSymbols=S.holdings.map(h=>h.s).join(', ')||'none';
+  const today=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const sn=S.lastSync?'Last synced: '+S.lastSync+'.':'Portfolio not yet synced.';
+
+  const promptParts=[
+    'You are a sharp daily trading advisor. Today: '+today+'. '+sn,
+    'PORTFOLIO: Total $'+totalVal+', Cash $'+cashNow+', '+S.holdings.length+' positions.',
+    'Holdings: '+hs,
+    'Goal: grow to $1000.',
+    'ONLY recommend SELL for stocks currently held: '+holdingSymbols+'.',
+    'ONLY recommend BUY using available cash of $'+cashNow+'.',
+    'Do NOT suggest selling stocks no longer owned.',
+    'Return ONLY valid JSON: {"marketSummary":"string","portfolioGrade":"string","topActions":[{"action":"BUY or SELL or HOLD","symbol":"TICKER","amount":0,"reasoning":"string","confidence":75,"priority":"HIGH"}],"riskWarning":"string","strategyNote":"string"}',
+    'Give 3-5 actions.'
+  ];
+  const prompt=promptParts.join(' ');
+    let apiError='';
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1200,messages:[{role:'user',content:prompt}]})
+    });
     const data=await res.json();
+    if(data.error){apiError=data.error.message;throw new Error(data.error.message);}
     const raw=data.content?.find(b=>b.type==='text')?.text||'';
-    S.advice=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    const cleaned=raw.replace(/```json|```/g,'').trim();
+    S.advice=JSON.parse(cleaned);
   }catch(e){
+    console.error('AI error:',e,apiError);
+    // Build dynamic fallback from ACTUAL current holdings
+    const topHoldings=S.holdings
+      .map(h=>({...h,val:h.sh*(P[h.s]?.p||h.avg)}))
+      .sort((a,b)=>b.val-a.val);
+    const smallPos=topHoldings.filter(h=>h.val<5);
+    const goodPos=topHoldings.filter(h=>h.val>=10);
+    const actions=[];
+    // Suggest selling small positions first
+    smallPos.slice(0,2).forEach(h=>{
+      actions.push({action:'SELL',symbol:h.s,amount:+h.val.toFixed(2),reasoning:'Small position under $5 — free up cash for larger opportunities.',confidence:82,priority:'HIGH'});
+    });
+    // Suggest holding or adding to best positions
+    if(goodPos.length>0){
+      actions.push({action:'HOLD',symbol:goodPos[0].s,amount:+(goodPos[0].sh*(P[goodPos[0].s]?.p||goodPos[0].avg)).toFixed(2),reasoning:'Your strongest position — monitor for momentum.',confidence:70,priority:'MEDIUM'});
+    }
+    // Suggest deploying cash if enough available
+    if(S.cash>=10){
+      actions.push({action:'BUY',symbol:'SPY',amount:+(S.cash*0.6).toFixed(2),reasoning:'Deploy cash into diversified ETF as portfolio anchor.',confidence:75,priority:'MEDIUM'});
+    }
+    if(actions.length===0){
+      actions.push({action:'HOLD',symbol:S.holdings[0]?.s||'SPY',amount:0,reasoning:'Monitor positions — no clear action today.',confidence:60,priority:'LOW'});
+    }
     S.advice={
-      marketSummary:'Markets up modestly today with tech leading. Small caps underperforming large caps — headwind for this portfolio.',
-      portfolioGrade:'C+ — Too many small/micro cap positions diluting returns. Consolidation needed.',
-      topActions:[
-        {action:'SELL',symbol:'OPTT',amount:3.90,reasoning:'Near-zero value, no near-term catalyst. Free up cash.',confidence:88,priority:'HIGH'},
-        {action:'SELL',symbol:'BYND',amount:3.75,reasoning:'Beyond Meat has fundamental business problems. Cut losses now.',confidence:85,priority:'HIGH'},
-        {action:'SELL',symbol:'MTNB',amount:0.60,reasoning:'Too small to matter. Clean up the portfolio.',confidence:82,priority:'HIGH'},
-        {action:'BUY',symbol:'ERIC',amount:15,reasoning:'Your strongest position — add to your winner with freed-up cash.',confidence:71,priority:'MEDIUM'},
-        {action:'BUY',symbol:'SPY',amount:15,reasoning:'Deploy remaining cash into stable ETF as portfolio anchor.',confidence:78,priority:'MEDIUM'},
-      ],
-      riskWarning:'Small/micro cap positions like HYLN and CLNE have thin liquidity — any market dip hits these hardest.',
-      strategyNote:'Sell your 5 smallest positions this week, consolidate into 3-4 quality names. Fewer positions = more focus = better returns.'
+      marketSummary:'Market analysis temporarily unavailable. Using portfolio-based recommendations from your current '+S.holdings.length+' positions.',
+      portfolioGrade:'B — Analysis based on current holdings only.',
+      topActions:actions,
+      riskWarning:'Diversification across '+S.holdings.length+' small positions increases volatility risk.',
+      strategyNote:'Consolidate small positions under $5 into 2-3 stronger holdings to improve returns.'
     };
   }
   aiLoad=false;sv();render();
