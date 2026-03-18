@@ -278,56 +278,60 @@ self.addEventListener('notificationclick',e=>{e.notification.close();e.waitUntil
 })();
 
 // ─── STATE ───────────────────────────────────────────────────
-const SK='sai8';
-const JOEL_HOLDINGS=[
-  {s:'SNAP', sh:5, avg:4.66},
-  {s:'CLNE', sh:10,     avg:2.17},
-  {s:'ERIC', sh:5,      avg:11.76},
-  {s:'OPTT', sh:10,     avg:0.39},
-  {s:'IMAQ', sh:5,      avg:10.19},
-  {s:'TXMD', sh:1,      avg:2.23},
-  {s:'TTWO', sh:0.0406, avg:206.72},
-  {s:'HUMA', sh:15, avg:1.17},
-  {s:'SPRU', sh:0.625,  avg:3.78},
-  {s:'HYLN', sh:10,     avg:1.94},
-  {s:'MTNB', sh:1,      avg:0.60},
-  {s:'OGI',  sh:2.50,   avg:1.45},
-  {s:'LONA', sh:1, avg:11.61},
-  {s:'CHAI', sh:2.50,   avg:1.51},
-  {s:'BYND', sh:5,      avg:0.75},
-  {s:'TLRY', sh:0.40, avg:6.94},
-];
-// Worthless/delisted excluded: IDEXQ, NEPTF, MMATQ, MMTZZZ
-const JOEL_CASH=30.29;
-const JOEL_TOTAL=366.24;
-let S=ld()||{
-  cash:JOEL_CASH,
-  holdings:JOEL_HOLDINGS,
+// ─── PERSISTENT KEY — never changes so updates never wipe data ──
+const SK='stockai_joel';
+
+// ─── DEFAULT HOLDINGS — Joel's real Robinhood portfolio ──────
+const DEFAULTS={
+  cash:30.29,
+  startValue:366.24,
   lastSync:'Mar 17, 5:48 PM',
   syncedFrom:'Robinhood screenshot',
-  startValue:JOEL_TOTAL,
-  history:[
-    {d:'Mar 13',v:358.2},{d:'Mar 14',v:362.77},
-    {d:'Mar 17',v:JOEL_TOTAL}
+  holdings:[
+    {s:'SNAP', sh:5,      avg:4.66},
+    {s:'CLNE', sh:10,     avg:2.17},
+    {s:'ERIC', sh:5,      avg:11.76},
+    {s:'IMAQ', sh:5,      avg:10.19},
+    {s:'TXMD', sh:1,      avg:2.23},
+    {s:'TTWO', sh:0.0406, avg:206.72},
+    {s:'HUMA', sh:15,     avg:1.17},
+    {s:'SPRU', sh:0.625,  avg:3.78},
+    {s:'HYLN', sh:10,     avg:1.94},
+    {s:'OGI',  sh:2.50,   avg:1.45},
+    {s:'LONA', sh:1,      avg:11.61},
+    {s:'CHAI', sh:2.50,   avg:1.51},
+    {s:'TLRY', sh:0.40,   avg:6.94},
   ],
-  advice:null,notifOn:false,portfolioChanged:false
+  history:[{d:'Mar 13',v:358.2},{d:'Mar 14',v:362.77},{d:'Mar 17',v:366.24}],
+  advice:null, notifOn:false, portfolioChanged:false
 };
-function sv(){try{localStorage.setItem(SK,JSON.stringify(S))}catch(e){}}
-function ld(){
-  try{
-    const d=JSON.parse(localStorage.getItem(SK));
-    // if stored state exists but has no holdings, restore defaults
-    if(d&&(!d.holdings||d.holdings.length===0)){
-      d.holdings=JOEL_HOLDINGS;
-      d.cash=JOEL_CASH;
-      d.lastSync='Mar 17, 5:48 PM';
-      d.syncedFrom='Robinhood screenshot';
-      d.startValue=JOEL_TOTAL;
-      if(!d.history||d.history.length<2) d.history=[{d:'Mar 13',v:358.2},{d:'Mar 14',v:362.77},{d:'Mar 17',v:JOEL_TOTAL}];
-    }
-    return d;
-  }catch(e){return null}
+
+// ─── LOAD — check ALL old keys + current, merge with defaults ─
+function loadState(){
+  // try current key first, then all old versioned keys
+  const keys=['stockai_joel','sai8','sai7','sai6','sai5','sai4','sai3'];
+  for(const k of keys){
+    try{
+      const raw=localStorage.getItem(k);
+      if(!raw) continue;
+      const d=JSON.parse(raw);
+      if(!d) continue;
+      // valid saved state — merge with defaults for any missing fields
+      const merged={...DEFAULTS,...d};
+      // ensure holdings always exist and are non-empty
+      if(!merged.holdings||merged.holdings.length===0) merged.holdings=DEFAULTS.holdings;
+      if(!merged.history||merged.history.length<2) merged.history=DEFAULTS.history;
+      if(!merged.startValue) merged.startValue=DEFAULTS.startValue;
+      // migrate to current key
+      try{localStorage.setItem(SK,JSON.stringify(merged))}catch(e){}
+      return merged;
+    }catch(e){continue}
+  }
+  return null;
 }
+
+let S=loadState()||{...DEFAULTS};
+function sv(){try{localStorage.setItem(SK,JSON.stringify(S))}catch(e){}}
 
 // ─── PRICES ──────────────────────────────────────────────────
 const TK=[
